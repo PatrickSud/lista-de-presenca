@@ -1,0 +1,2394 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lista de Presença Sacramental (v17.2)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      [v-cloak] {
+        display: none;
+      }
+
+      .fade-enter-active,
+      .fade-leave-active {
+        transition: all 0.3s ease;
+      }
+      .fade-enter-from,
+      .fade-leave-to {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      .menu-enter-active,
+      .menu-leave-active {
+        transition: all 0.3s ease-in-out;
+      }
+      .menu-enter-from,
+      .menu-leave-to {
+        transform: translateX(100%);
+      }
+
+      .list-select {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-color: transparent;
+        border: none;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        font-size: inherit;
+        cursor: pointer;
+      }
+      .list-select:focus {
+        outline: none;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-900 text-slate-200 antialiased">
+    <div id="app" v-cloak class="max-w-5xl mx-auto p-2 sm:p-4">
+      <!-- Notificação Flutuante -->
+      <transition name="fade">
+        <div
+          v-if="notification.show"
+          :class="notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'"
+          class="fixed top-4 right-4 text-white py-2 px-4 rounded-lg shadow-lg z-50 text-sm"
+        >
+          {{ notification.message }}
+        </div>
+      </transition>
+
+      <!-- Menu Lateral (Hambúrguer) -->
+      <div
+        v-if="isMenuOpen"
+        @click="isMenuOpen = false"
+        class="fixed inset-0 bg-black/60 z-30"
+      ></div>
+      <transition name="menu">
+        <aside
+          v-if="isMenuOpen"
+          class="fixed top-0 right-0 h-full w-72 bg-slate-800 shadow-xl z-40 p-6 flex flex-col"
+        >
+          <div>
+            <h2 class="text-xl font-bold text-white mb-6">Menu</h2>
+            <ul class="space-y-1">
+              <li>
+                <button
+                  @click="openAddMemberModal"
+                  class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-200 hover:bg-slate-700 transition-colors text-sm"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  Adicionar Membro
+                </button>
+              </li>
+              <li>
+                <button
+                  @click="openDashboardModal"
+                  class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-200 hover:bg-slate-700 transition-colors text-sm"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"
+                    />
+                  </svg>
+                  Análises e Relatórios
+                </button>
+              </li>
+              <li>
+                <button
+                  @click="openExportModal"
+                  class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-200 hover:bg-slate-700 transition-colors text-sm"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  Exportar Lista Diária (.xlsx)
+                </button>
+              </li>
+              <li>
+                <button
+                  @click="exportBackup"
+                  class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-200 hover:bg-slate-700 transition-colors text-sm"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z"
+                    />
+                  </svg>
+                  Exportar Backup (.json)
+                </button>
+              </li>
+              <li>
+                <button
+                  @click="openImportModal"
+                  class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-200 hover:bg-slate-700 transition-colors text-sm"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  Importar Backup (.json)
+                </button>
+              </li>
+            </ul>
+            <!-- Legenda -->
+            <div class="mt-8 pt-4 border-t border-slate-700">
+              <h3
+                class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"
+              >
+                Legenda de Frequência
+              </h3>
+              <ul class="space-y-2 text-sm">
+                <li class="flex items-center gap-2.5">
+                  <span
+                    class="w-2.5 h-2.5 rounded-full bg-green-500 flex-shrink-0"
+                  ></span>
+                  <span class="text-slate-300 text-xs"
+                    >Presente nas últimas 3 reuniões</span
+                  >
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <span
+                    class="w-2.5 h-2.5 rounded-full bg-yellow-500 flex-shrink-0"
+                  ></span>
+                  <span class="text-slate-300 text-xs"
+                    >Ausente nas últimas 2 reuniões</span
+                  >
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <span
+                    class="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0"
+                  ></span>
+                  <span class="text-slate-300 text-xs"
+                    >Ausente nas últimas 3 reuniões</span
+                  >
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <span
+                    class="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0"
+                  ></span>
+                  <span class="text-slate-300 text-xs"
+                    >Dados de frequência insuficientes</span
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+        </aside>
+      </transition>
+
+      <!-- Cabeçalho -->
+      <header
+        class="mb-4 flex items-center justify-between relative bg-slate-900/70 backdrop-blur-sm pt-2 pb-3 border-b border-slate-700/50"
+      >
+        <div class="w-8"></div>
+        <!-- Espaçador para centralizar o título -->
+        <h1
+          class="text-xl sm:text-2xl font-bold text-white text-center absolute left-1/2 -translate-x-1/2 w-full px-12"
+        >
+          Lista de Presença
+        </h1>
+        <button
+          @click="isMenuOpen = true"
+          class="p-1 text-slate-400 hover:text-white transition-colors relative z-10 mr-2"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6 sm:h-7 sm:w-7"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
+      </header>
+
+      <!-- Painel de Controles e Lista -->
+      <div class="bg-slate-800 p-2 sm:p-4 rounded-xl shadow-2xl">
+        <!-- Layout de Controles Ajustado -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+          <!-- Esquerda Superior (Mobile) / Coluna 1 (Desktop) -->
+          <div>
+            <label
+              for="search"
+              class="block text-xs font-medium text-slate-400 mb-1"
+              >Pesquisar (Nome):</label
+            >
+            <input
+              type="text"
+              id="search"
+              :value="searchTerm"
+              @input="debouncedSearch($event.target.value)"
+              placeholder="Digite um nome..."
+              class="w-full px-3 py-1.5 text-sm bg-slate-700 border border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-200"
+            />
+          </div>
+
+          <!-- Direita Superior (Mobile) / Coluna 2 (Desktop) -->
+          <div>
+            <label
+              for="selectedDate"
+              class="block text-xs font-medium text-slate-400 mb-1"
+              >Data:</label
+            >
+            <input
+              type="date"
+              id="selectedDate"
+              v-model="selectedDate"
+              class="w-full px-3 py-1.5 text-sm bg-slate-700 border border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-200"
+            />
+          </div>
+
+          <!-- Direita Inferior (Mobile) / Coluna 3 (Desktop) -->
+          <div
+            class="bg-slate-900/50 rounded-lg p-2 md:p-4 flex items-center justify-between md:flex-col md:justify-center row-start-3 md:row-start-1 col-span-2 md:col-span-1"
+          >
+            <h3 class="text-sm md:text-base font-medium text-slate-400 md:mb-2">
+              Presentes
+            </h3>
+            <div class="text-right md:text-center">
+              <p class="text-3xl md:text-5xl font-bold text-green-400">
+                {{ presentFilteredCount }}
+              </p>
+              <p class="text-xs text-slate-400">
+                de {{ filteredMembers.length }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Esquerda Inferior (Mobile) / Linha 2 (Desktop) -->
+          <div class="col-span-2 md:col-span-3">
+            <label class="block text-xs font-medium text-slate-400 mb-2"
+              >Filtrar por Organização:</label
+            >
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="org in organizationOptions"
+                :key="org"
+                @click="toggleOrgFilter(org)"
+                :class="selectedOrganizations.includes(org) ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'"
+                class="px-2.5 py-1 text-[11px] sm:text-xs font-semibold rounded-full transition-all duration-200"
+              >
+                {{ org }}
+              </button>
+              <button
+                v-if="selectedOrganizations.length > 0"
+                @click="selectedOrganizations = []"
+                class="px-2.5 py-1 text-[11px] sm:text-xs font-semibold rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                Limpar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <hr class="border-slate-700 my-3" />
+
+        <!-- Lista de Membros -->
+        <div>
+          <div class="max-h-[60vh] overflow-y-auto no-scrollbar">
+            <ul class="divide-y divide-slate-700">
+              <li
+                v-if="isLoading"
+                class="p-4 text-center text-slate-400 text-sm"
+              >
+                Carregando...
+              </li>
+              <li
+                v-else-if="members.length === 0"
+                class="p-6 text-center text-slate-400"
+              >
+                <h3 class="text-base font-medium text-white">Lista Vazia</h3>
+                <p class="mt-1 text-sm">
+                  Adicione o primeiro membro para começar.
+                </p>
+              </li>
+              <li
+                v-else-if="filteredMembers.length === 0"
+                class="p-4 text-center text-slate-400 text-sm"
+              >
+                Nenhum membro encontrado.
+              </li>
+
+              <li
+                v-for="member in filteredMembers"
+                :key="member.id"
+                @click="togglePresence(member.id)"
+                class="flex items-center justify-between p-2 md:p-3 transition-all duration-200 group rounded-lg cursor-pointer"
+                :class="{ 'bg-green-500/10': isPresent(member.id), 'hover:bg-slate-700/50': editingMemberId !== member.id }"
+              >
+                <div class="flex items-center flex-grow mr-2">
+                  <span
+                    class="w-2.5 h-2.5 rounded-full mr-3 flex-shrink-0"
+                    :class="getMemberStatusClass(member.id)"
+                  ></span>
+                  <div class="flex-grow">
+                    <div
+                      v-if="editingMemberId === member.id"
+                      @click.stop
+                      class="flex items-center gap-2"
+                    >
+                      <input
+                        type="text"
+                        v-model="editingName"
+                        @keyup.enter="saveNameEdit(member)"
+                        @keyup.esc="cancelNameEdit"
+                        class="w-full px-2 py-1 text-sm bg-slate-600 border border-blue-500 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-100"
+                      />
+                      <button
+                        @click="saveNameEdit(member)"
+                        class="p-1 text-green-400 hover:text-green-300"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          class="h-4 w-4"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        @click="cancelNameEdit"
+                        class="p-1 text-red-400 hover:text-red-300"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          class="h-4 w-4"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <div v-else>
+                      <div class="flex items-center gap-2">
+                        <p
+                          class="font-semibold text-sm sm:text-base text-slate-100"
+                        >
+                          {{ member.name }}
+                        </p>
+                        <button
+                          @click.stop="startNameEdit(member)"
+                          class="text-slate-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-4 w-4"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"
+                            />
+                            <path
+                              fill-rule="evenodd"
+                              d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
+                              clip-rule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                      <div
+                        @click.stop
+                        class="relative mt-1 inline-flex items-center group"
+                      >
+                        <select
+                          :value="member.organization"
+                          @change="updateMemberOrganization(member.id, $event.target.value)"
+                          class="list-select text-[11px] sm:text-sm text-slate-400 group-hover:text-blue-400 transition-colors pr-4 bg-transparent"
+                        >
+                          <option
+                            v-for="org in organizationOptions"
+                            :key="org"
+                            :value="org"
+                          >
+                            {{ org }}
+                          </option>
+                        </select>
+                        <div
+                          class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-3 w-3 sm:h-4 sm:w-4 text-slate-500 group-hover:text-blue-400 transition-colors"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- O toggle agora é apenas um indicador visual, o clique é tratado pelo <li> -->
+                <div
+                  class="relative inline-flex items-center pointer-events-none"
+                >
+                  <input
+                    type="checkbox"
+                    :id="'toggle-' + member.id"
+                    class="sr-only peer"
+                    :checked="isPresent(member.id)"
+                  />
+                  <div
+                    class="w-11 h-6 bg-slate-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"
+                  ></div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modals -->
+      <div
+        v-if="showAddMemberModal"
+        class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-20 p-4"
+      >
+        <div
+          class="bg-slate-800 rounded-xl shadow-2xl p-6 w-full max-w-md border border-slate-700"
+        >
+          <h3 class="text-xl font-bold mb-4 text-white flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-6 w-6"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Adicionar Novo Membro
+          </h3>
+          <form @submit.prevent="addMember">
+            <div class="mb-4">
+              <label
+                for="newMemberName"
+                class="block text-sm font-medium text-slate-400 mb-1"
+                >Nome Completo</label
+              >
+              <input
+                type="text"
+                id="newMemberName"
+                v-model="newMember.name"
+                required
+                class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-200"
+              />
+            </div>
+            <div class="mb-6">
+              <label
+                for="newMemberOrg"
+                class="block text-sm font-medium text-slate-400 mb-1"
+                >Organização</label
+              >
+              <select
+                id="newMemberOrg"
+                v-model="newMember.organization"
+                class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-200"
+              >
+                <option
+                  v-for="org in organizationOptions"
+                  :key="org"
+                  :value="org"
+                >
+                  {{ org }}
+                </option>
+              </select>
+            </div>
+            <div class="flex justify-end gap-4">
+              <button
+                type="button"
+                @click="showAddMemberModal = false"
+                class="px-4 py-2 text-sm bg-slate-600 text-slate-200 rounded-lg hover:bg-slate-500"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                class="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
+              >
+                Adicionar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div
+        v-if="showExportModal"
+        class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-20 p-4"
+      >
+        <div
+          class="bg-slate-800 rounded-xl shadow-2xl p-6 w-full max-w-md border border-slate-700"
+        >
+          <h3 class="text-xl font-bold mb-4 text-white flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-6 w-6"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Exportar Relatório Diário
+          </h3>
+          <p class="text-slate-400 mb-4 text-sm">
+            Selecione a data para gerar o relatório de presença.
+          </p>
+          <div class="mb-6">
+            <label
+              for="exportDate"
+              class="block text-sm font-medium text-slate-400 mb-1"
+              >Data do Relatório</label
+            >
+            <input
+              type="date"
+              id="exportDate"
+              v-model="exportDate"
+              class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-200"
+            />
+          </div>
+          <div class="flex justify-end gap-4">
+            <button
+              type="button"
+              @click="showExportModal = false"
+              class="px-4 py-2 text-sm bg-slate-600 text-slate-200 rounded-lg hover:bg-slate-500"
+            >
+              Cancelar
+            </button>
+            <button
+              @click="exportToExcel"
+              :disabled="isExporting"
+              class="px-4 py-2 text-sm bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 disabled:bg-gray-400"
+            >
+              <span v-if="isExporting">Exportando...</span>
+              <span v-else>Exportar</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="showDashboardModal"
+        class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-20 p-4"
+      >
+        <div
+          class="bg-slate-800 rounded-xl shadow-2xl p-6 w-full max-w-4xl border border-slate-700 h-[90vh] flex flex-col"
+        >
+          <h3 class="text-xl font-bold mb-4 text-white flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-6 w-6"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"
+              />
+            </svg>
+            Análises de Frequência
+          </h3>
+          <div class="flex-grow overflow-y-auto no-scrollbar space-y-6 pr-2">
+            <!-- Análise por Período -->
+            <div class="bg-slate-700/50 p-4 rounded-lg">
+              <h4 class="font-semibold mb-3 text-base">Análise por Período</h4>
+              <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                <div>
+                  <label
+                    for="startDate"
+                    class="block text-sm font-medium text-slate-400 mb-1"
+                    >Início</label
+                  >
+                  <input
+                    type="date"
+                    id="startDate"
+                    v-model="reportStartDate"
+                    class="px-3 py-2 text-sm bg-slate-700 border border-slate-600 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label
+                    for="endDate"
+                    class="block text-sm font-medium text-slate-400 mb-1"
+                    >Fim</label
+                  >
+                  <input
+                    type="date"
+                    id="endDate"
+                    v-model="reportEndDate"
+                    class="px-3 py-2 text-sm bg-slate-700 border border-slate-600 rounded-lg"
+                  />
+                </div>
+                <button
+                  @click="generateReport"
+                  :disabled="isGeneratingReport"
+                  class="self-end px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-slate-600"
+                >
+                  <span v-if="isGeneratingReport">Gerando...</span>
+                  <span v-else>Gerar Análise</span>
+                </button>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                <div class="bg-slate-700 p-3 rounded-lg">
+                  <h4 class="text-slate-400 font-medium text-sm">
+                    Média de Presença
+                  </h4>
+                  <p class="text-2xl font-bold text-green-400">
+                    {{ reportMetrics.averageAttendance }}
+                  </p>
+                </div>
+                <div class="bg-slate-700 p-3 rounded-lg">
+                  <h4 class="text-slate-400 font-medium text-sm">
+                    Pico de Presença
+                  </h4>
+                  <p class="text-2xl font-bold text-green-400">
+                    {{ reportMetrics.peakAttendance.count }}
+                    <span class="text-xs font-normal text-slate-400"
+                      >em {{ reportMetrics.peakAttendance.date }}</span
+                    >
+                  </p>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+                <div class="bg-slate-700 p-4 rounded-lg h-64">
+                  <canvas id="totalAttendanceChart"></canvas>
+                </div>
+                <div class="bg-slate-700 p-4 rounded-lg h-64">
+                  <canvas id="orgAttendanceChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <!-- Frequência da Organização por Dia -->
+            <div class="bg-slate-700/50 p-4 rounded-lg">
+              <h4 class="font-semibold mb-3 text-base">
+                Frequência da Organização por Dia
+              </h4>
+              <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                <div>
+                  <label
+                    for="dailyReportDate"
+                    class="block text-sm font-medium text-slate-400 mb-1"
+                    >Selecione o Dia</label
+                  >
+                  <input
+                    type="date"
+                    id="dailyReportDate"
+                    v-model="dailyReportDate"
+                    class="px-3 py-2 text-sm bg-slate-700 border border-slate-600 rounded-lg"
+                  />
+                </div>
+                <button
+                  @click="generateDailyReport"
+                  :disabled="isGeneratingDailyReport"
+                  class="self-end px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-slate-600"
+                >
+                  <span v-if="isGeneratingDailyReport">Gerando...</span>
+                  <span v-else>Gerar Gráfico do Dia</span>
+                </button>
+              </div>
+              <div class="bg-slate-700 p-4 rounded-lg h-64">
+                <canvas id="dailyOrgAttendanceChart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="mt-6 text-right">
+            <button
+              type="button"
+              @click="showDashboardModal = false"
+              class="px-4 py-2 text-sm bg-slate-600 text-slate-200 rounded-lg hover:bg-slate-500"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="showImportModal"
+        class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-20 p-4"
+      >
+        <div
+          class="bg-slate-800 rounded-xl shadow-2xl p-6 w-full max-w-md border border-slate-700"
+        >
+          <h3 class="text-xl font-bold mb-4 text-white flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-6 w-6"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Importar Backup (.json)
+          </h3>
+          <p class="text-slate-400 mb-2 text-sm">
+            Selecione um arquivo .json. Isso substituirá **todos** os dados
+            atuais (membros e presenças).
+          </p>
+          <div class="mb-6">
+            <input
+              type="file"
+              @change="handleFileSelect"
+              accept=".json"
+              class="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+            />
+          </div>
+          <div class="flex justify-end gap-4">
+            <button
+              type="button"
+              @click="showImportModal = false"
+              class="px-4 py-2 text-sm bg-slate-600 text-slate-200 rounded-lg hover:bg-slate-500"
+            >
+              Cancelar
+            </button>
+            <button
+              @click="importBackup"
+              :disabled="!importFile"
+              class="px-4 py-2 text-sm bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 disabled:bg-gray-500"
+            >
+              Importar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script type="module">
+      import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js'
+      import {
+        getAuth,
+        signInAnonymously,
+        signInWithCustomToken,
+        onAuthStateChanged
+      } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js'
+      import {
+        getFirestore,
+        collection,
+        doc,
+        addDoc,
+        setDoc,
+        onSnapshot,
+        writeBatch,
+        updateDoc,
+        getDoc,
+        getDocs,
+        query,
+        where,
+        deleteDoc,
+        setLogLevel
+      } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js'
+
+      const { createApp, ref, computed, onMounted, watch } = Vue
+
+      createApp({
+        setup() {
+          // --- State Management ---
+          const organizationOptions = [
+            'Sociedade de Socorro',
+            'Quórum de Élderes',
+            'Jovens (Moças)',
+            'Jovens (Rapazes)',
+            'Primária',
+            'Visitante',
+            'Outro'
+          ]
+          const members = ref([])
+          const presentMemberIds = ref([])
+          const searchTerm = ref('')
+          const selectedOrganizations = ref([])
+          const selectedDate = ref(new Date().toISOString().split('T')[0])
+          const isLoading = ref(true)
+          const isExporting = ref(false)
+          const showAddMemberModal = ref(false)
+          const showExportModal = ref(false)
+          const showDashboardModal = ref(false)
+          const showImportModal = ref(false)
+          const isMenuOpen = ref(false)
+          const newMember = ref({
+            name: '',
+            organization: organizationOptions[0]
+          })
+          const exportDate = ref(new Date().toISOString().split('T')[0])
+          const importFile = ref(null)
+          const notification = ref({
+            show: false,
+            message: '',
+            type: 'success'
+          })
+          const editingMemberId = ref(null)
+          const editingName = ref('')
+          const isGeneratingReport = ref(false)
+          const isGeneratingDailyReport = ref(false)
+          const reportStartDate = ref('')
+          const reportEndDate = ref('')
+          const dailyReportDate = ref(new Date().toISOString().split('T')[0])
+          const reportMetrics = ref({
+            averageAttendance: 0,
+            peakAttendance: { count: 0, date: 'N/A' }
+          })
+
+          // --- Status Indicator State ---
+          const recentAttendance = ref({}) // { 'YYYY-MM-DD': ['id1', 'id2'], ... }
+          const lastThreeSundays = ref([])
+          const memberStatusCache = ref({}) // Cache for member status to improve performance
+
+          // --- Chart & Timer References ---
+          let totalAttendanceChart = null
+          let orgAttendanceChart = null
+          let dailyOrgChart = null
+          let autoSaveTimer = null
+          let debounceTimer = null
+
+          // --- Firebase References ---
+          const db = ref(null)
+          const auth = ref(null)
+          const appId = ref(
+            typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'
+          )
+          let membersCollectionRef = null
+          let attendanceCollectionRef = null
+          let unsubscribeMembers = null
+          let unsubscribeAttendance = null
+
+          // --- Utility Functions ---
+          function showNotification(message, type = 'info', duration = 3000) {
+            notification.value = { show: true, message, type }
+            setTimeout(() => {
+              notification.value.show = false
+            }, duration)
+          }
+
+          // --- Computed Properties ---
+          const filteredMembers = computed(() => {
+            return members.value.filter(member => {
+              const nameMatch = member.name
+                .toLowerCase()
+                .includes(searchTerm.value.toLowerCase())
+              const orgMatch =
+                selectedOrganizations.value.length === 0 ||
+                selectedOrganizations.value.includes(member.organization)
+              return nameMatch && orgMatch
+            })
+          })
+
+          const presentFilteredCount = computed(() => {
+            const filteredIds = new Set(filteredMembers.value.map(m => m.id))
+            return presentMemberIds.value.filter(id => filteredIds.has(id))
+              .length
+          })
+
+          // --- Core Logic Functions ---
+          const isPresent = memberId =>
+            presentMemberIds.value.includes(memberId)
+
+          const togglePresence = memberId => {
+            const index = presentMemberIds.value.indexOf(memberId)
+            if (index > -1) {
+              presentMemberIds.value.splice(index, 1)
+            } else {
+              presentMemberIds.value.push(memberId)
+            }
+          }
+
+          const toggleOrgFilter = org => {
+            const index = selectedOrganizations.value.indexOf(org)
+            if (index > -1) {
+              selectedOrganizations.value.splice(index, 1)
+            } else {
+              selectedOrganizations.value.push(org)
+            }
+          }
+
+          // --- Search Debounce ---
+          const debouncedSearch = value => {
+            clearTimeout(debounceTimer)
+            debounceTimer = setTimeout(() => {
+              searchTerm.value = value
+            }, 300)
+          }
+
+          // --- Firebase Initialization & Listeners ---
+          async function initializeFirebase() {
+            try {
+              const firebaseConfig = {
+                apiKey: 'AIzaSyCF3cAsGdkg8I07KZh08tfvJIdEn7l5FaA',
+                authDomain: 'lista-presenca-ala.firebaseapp.com',
+                projectId: 'lista-presenca-ala',
+                storageBucket: 'lista-presenca-ala.firebasestorage.app',
+                messagingSenderId: '207348497162',
+                appId: '1:207348497162:web:a7dcf875c8cf1b82b358f3'
+              }
+
+              const app = initializeApp(firebaseConfig)
+              db.value = getFirestore(app)
+              auth.value = getAuth(app)
+
+              onAuthStateChanged(auth.value, user => {
+                if (user) {
+                  setupFirestoreListeners()
+                } else {
+                  const token =
+                    typeof __initial_auth_token !== 'undefined'
+                      ? __initial_auth_token
+                      : null
+                  const authPromise = token
+                    ? signInWithCustomToken(auth.value, token)
+                    : signInAnonymously(auth.value)
+                  authPromise.catch(err =>
+                    console.error('Erro de autenticação:', err)
+                  )
+                }
+              })
+            } catch (error) {
+              console.error('Erro ao inicializar Firebase:', error)
+              isLoading.value = false
+              showNotification(error.message, 'error')
+            }
+          }
+
+          function setupFirestoreListeners() {
+            const basePath = `/artifacts/${appId.value}/public/data`
+            membersCollectionRef = collection(db.value, `${basePath}/members`)
+            attendanceCollectionRef = collection(
+              db.value,
+              `${basePath}/attendance`
+            )
+
+            if (unsubscribeMembers) unsubscribeMembers()
+            unsubscribeMembers = onSnapshot(
+              query(membersCollectionRef),
+              snapshot => {
+                if (snapshot.empty && isLoading.value) {
+                  addInitialData() // Seed data if collection is empty
+                } else {
+                  const memberList = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                  }))
+                  members.value = memberList.sort((a, b) =>
+                    a.name.localeCompare(b.name)
+                  )
+                }
+                isLoading.value = false
+              },
+              error => {
+                console.error('Erro ao buscar membros:', error)
+                isLoading.value = false
+              }
+            )
+
+            loadAttendanceForDate(selectedDate.value)
+          }
+
+          async function addInitialData() {
+            const nameList = [
+              'Abreu, Margareth Moreira Santos de',
+              'Afonso Dos Santos, Daniel',
+              'Aguiar, Claudineia Vieira De',
+              'Alcântara, Paula',
+              'Alemi, Elison Leonardo',
+              'Alemi, Kellen Cristina Rissato',
+              'Alfredo, Benedita Rodrigues de Oliveira',
+              'Alfredo junior, Valdir José',
+              'Almeida, Luciene Antonia Vianem',
+              'Almeida, Maicon Alves de',
+              'Almeida, Sergio Luiz Andrade de',
+              'Almeida, Sidney Silva de',
+              'Almeida, Silvana Andrade de',
+              'Almeida, Solange Andrade de',
+              'Almeida, Tercia Madalena Soares de',
+              'Alves, Adriana Aparecida Pontes',
+              'Alves, Edson Florencio',
+              'Alves, Henrique Francisco',
+              'Alves, Márcia Cristina Francisco',
+              'Alves, Patrick de Assis Cecilio',
+              'Alves, Roberto Gomes',
+              'Amaral, Adriano Alves Do',
+              'Amaral, Hellen Cristina Oliveira do',
+              'Andrade, Laliano Gonçalves de',
+              'Andrade, Vanderleia da Silva Gonçalves de',
+              'Antunez, Luisa Coimbra',
+              'Antunez Rodrigues, Luis Guilherme',
+              'Aparecida Ferreira, Leila',
+              'Araújo, Adriano',
+              'Araújo, Antônio Carlos de',
+              'Araújo, Elaine Cristina Soares',
+              'Araújo, Julio César Soares',
+              'Arevalo Rodriguez, Elsy Deusdedi',
+              'Assis, Alessandro de',
+              'Assis, Jeane Cristina de',
+              'Atanasio, Maria Madelena',
+              'Baptista, Ângela Maria',
+              'Baraybar, Stella Beatriz Jara',
+              'Barbaro, Jessica Colombari',
+              'Barbosa, Heloisa Padilha',
+              'Barbosa, Marinês Candida',
+              'Barboza, Lorrana',
+              'Barros, Ivone Nunes',
+              'Benacon, Graciney de Carvalho',
+              'Beraldo, Pedro Luiz',
+              'Bermúdez, Ivana Judith Chaile',
+              'Bezerra, José Alves',
+              'Biasi, Lyris',
+              'Biscola, Marco Antônio',
+              'Biscola De Souza Santos, Melissa',
+              'Bispo de Sousa, Gabriela',
+              'Bispo de Sousa, Isabella',
+              'Bispo De Sousa Moraes Bonrruque, Felipe',
+              'Bispo de Sousa Moraes Bonrruque, Julia',
+              'Bispo Pereira, Dinaura',
+              'Bonilha, Stéphanie de Angelo',
+              'Bonna, Elaine Cristina',
+              'Borges, Eva Cristina Teixeira Da Silva',
+              'Borges Hohene, Felipe',
+              'Bracale, Mara Lúcia',
+              'Braga, Aquiles Fontenele',
+              'Braga, Chrislayne Fontenele',
+              'Breda, Cleverson Pereira',
+              'Brito, Douglas Fontenele',
+              'Brito, Emillin Carolina da Silva',
+              'Brito, Evellin Sabrina da Silva',
+              'Brito, Geraldo Lourenço de',
+              'Brito, Idivanete Aparecida de',
+              'Camillis, Amon Luis Cooper',
+              'Camillis, Luis Antonio de Souza',
+              'Camillis, Moroni Henrique Cooper',
+              'Camillis, Paula Rezende Cooper',
+              'Campanini, Júlia Cooper Camillis',
+              'Campos, Agnaldo Iran de',
+              'Campos, Anderson',
+              'Campos, Daniel Lucas de',
+              'Campos, Enzo Gabriel de',
+              'Campos, Jaqueline Eduarda de',
+              'Campos, Juliane Cristine de',
+              'Campos, Milton de',
+              'Campos, Miriam Aparecida Silva de',
+              'Campos, Regina Aparecida Faustino de',
+              'Campos, Zenilda Gomes Lira de',
+              'Cardoso, Andréa Patricia Silva',
+              'Carmo, Adilson Julinho do',
+              'Carmo, Davi Julinho do',
+              'Carmo, Enzo Julinho do',
+              'Carmo, Lauana Amélia Silva do',
+              'Carmo, Manuela Ferreira do',
+              'Carmo, Milena Ferreira',
+              'Carmo, Neusa Barbosa Do',
+              'Carmo, Sara Ferreira do',
+              'Carmo, Tiago Julinho Do',
+              'Carmo Junior, Adilson Julinho Do',
+              'Carvalho, Eva Campos',
+              'Castillo Fereira, Melvin Jose',
+              'Castillo Guillen, Yexenny Alejandra',
+              'Catão, Elisabete dos Santos',
+              'Catão, Jorge Alfredo',
+              'Ceara, Carolina Reis',
+              'Cecilio, Rosangela Assis',
+              'Celio, Mirella Borghi',
+              'Cesarino, Bruna Hellen Cristina Nascimento',
+              'Cesarino, Ezequiel',
+              'Cesarino, Silvana',
+              'Cezarino, Matheus Henrique do Nascimento',
+              'Chayra Santos Restivo, Kailayne',
+              'Corrêa, Letícia Grizzo',
+              'Correia, Fabiane',
+              'Correia, Juliane',
+              'Costa, Ana Claudia Pio da',
+              'Costa, Celso Fernando da',
+              'Costa, Gabriel Rodrigues da',
+              'Costa, Maria Alice Da',
+              'Costa, Vera Justi',
+              'Cruz, Estela Soares da',
+              'Cruz, Maria Luiza Soares Da',
+              'Cruz, Roger Soares Da',
+              'Cruz, Silvana Cristina Carneiro',
+              'Cuchiaro, Ana Carolinne Silvestre',
+              'Cunha, Daniel Marques',
+              'Cunha, Helena Rodriguez',
+              'Cunha, Liz Rodriguez',
+              'Cunha, Marcos Vinícius Assis',
+              'Cunha, Victória Calixto',
+              'Cunha, Yoselin Rodriguez',
+              'Damaso, Matheus',
+              'Daraviña Torres, Jacqueline',
+              'da Silva, Bruno Rodrigo Corrêa',
+              'Da Silva, Luan Junior',
+              'Da Silva, Maria Geovanna',
+              'Da Silva, Mariana',
+              'De Fátima Faria Dos Santos Restivo, Maria',
+              'Devesa, Isabelly Bonilha',
+              'Devesa, Luciano de Araujo',
+              'Dias, Denise Santos',
+              'Dias, João Gabriel Carvalho',
+              'Dias, Zenaide de Oliveira',
+              'Diniz, Joubert Paim',
+              'Diniz, Wanderleia Salles',
+              'do Carmo, Júlia Silva',
+              'Do Nascimento Silva, Isabela',
+              'Dos Santos, Joraci Raul',
+              'Duarte, Nicolas Mazon',
+              'Epifanio, Antonio Carlos',
+              'Escobar, Stephany De Los Angeles Parima',
+              'Escobar Garcia, Jennifer De Los Angeles',
+              'Everton, Mathaus de Lima',
+              'Everton, Yasmim de Lima',
+              'Faria, Agatha Cristina Simões de',
+              'Faria, Bruno Simões de',
+              'Faustino Junior, Nelson Roberto',
+              'Felipe, Camilla de Abreu',
+              'Felipe, Pablo Henrique',
+              'Felipe, Pamella Cássia',
+              'Felix, Henrique Pontes',
+              'Fernandes, José Maria Cardoso',
+              'Ferrari, Laura Galvão',
+              'Ferrari, Victor Orlando',
+              'Ferreira, Alexandre Barbosa',
+              'Ferreira, Fabiana de Fátima',
+              'Ferreira, Nikelly Lohane da Silva',
+              'Ferreira, Nilza Alves',
+              'Ferreira, Tânia',
+              'Ferreira Augusto, Kelly Silvia',
+              'Ferreira Da Silva, Karine',
+              'Fidelis, Anderson da Silva',
+              'Fidelis, Elisângela Padilha',
+              'Fidelis, Helena Padilha',
+              'Fidélis, Leandro Da Silva',
+              'Fidélis, Sara Padilha',
+              'Filho, José Carlos de Souza',
+              'Fonseca, Daniela Aparecida Lourenti da',
+              'Fonseca, Giovana Lourenti da',
+              'Fonseca, Kleverson Moreira da',
+              'Fonseca, Otávio Abílio Lourenti da',
+              'França, Fabiana de Souza',
+              'Franco, Ana Claúdia Alves',
+              'Franco, Anamaria',
+              'Franco, Emily Alves',
+              'Frazão, Gabriel de Oliveira Souza',
+              'Freitas, Sileide Aparecida Gerônimo de',
+              'Fuentes Ortega, José Maria',
+              'Furquim Filho, Sergio',
+              'Furtado, Giovanna Do Amaral',
+              'Furtado, Rikelman do Amaral',
+              'Galvão, Aparecida Santana',
+              'Galvão, Arthur José de Souza',
+              'Galvão, Diego José de Oliveira',
+              'Galvão, Fernanda Aparecida',
+              'Galvão, Nathália Cristina',
+              'Galvão, Priscila Souza',
+              'Galvão, Tiago Francisco',
+              'Garcia, Luan dos Santos',
+              'Garcia De Lima, Bianca',
+              'Godoy, Oliver Levi Prieto',
+              "Godoy, Patrick Anderson Sant'ana de",
+              'Gomes, Ademir Fernandez',
+              'Gomes, Romildo Rodrigues',
+              'Gomez, Eduardo Feliciano Sans',
+              'Gomez, Lindalva Firmino Ferreira Sans',
+              'Gonzalez Duran, Harry Alexander',
+              'Guevara, Janeth Alizaida García',
+              'Guillen, Liam Gabriel Castillo',
+              'Guillén Guillén, Inyerth Yexeny',
+              'Hasse, Julia Agatha Gomes de Campos',
+              'Hasse, Lincoln Rodrigues',
+              'Hohene, Hugo da Silva',
+              'Hohene, Isabela da Silva',
+              'Hohene, Rafael',
+              'Hohene, Rosangela Mara Nogueira',
+              'Hohene, Sheila Aparecida Silva',
+              'Hohene, Sophia da Silva',
+              'Joch, Maria Jose da Silva',
+              'Langoni, Maria Luisa Caldas Pombal',
+              'Langoni, Vinícius Andrioli Pombal',
+              'Lavieri, Danilo De Lima',
+              'Leite, Antonio Carlos Hypolito',
+              'Leite, Manoel Santos',
+              'Leite, Pupilla Daniela Ribeiro Gambaro',
+              'Lima, Rodrigo Siqueira de',
+              'Lira, Liliane Tito',
+              'Lira, Raimunda Tito do Nascimento',
+              'Lira Barreto, Sophia',
+              'Lourenço, Ronan Eduardo',
+              'Lubomirsky, Araceli',
+              'Lucato, Dayana Aline',
+              'Lucato, Gislaine Cristina Galvao',
+              'Lucato, Jonata',
+              'Lucato, Ketilly Cristina',
+              'Lucato, Letícia Luiza Galvão',
+              'Lucato, Maria Medina',
+              'Lucato, Mariana Galvao',
+              'Lucato, Vanderlei',
+              'Macedo, Gabriel Galvão de',
+              'Macedo, Gustavo Galvão de',
+              'Macedo, Nelierte Marques',
+              'Macena, José Martins',
+              'Machado, Yasmim Ferreira',
+              'Maduro, Neusa Pereira',
+              'Maia, Margarida Seixas',
+              'Malainer, José Rubens',
+              'Maleiner, Maria',
+              'Marcelina, Thaylla Estefani',
+              'Marcelino, Isabela Fernanda',
+              'Marcelino, Paulo Bueno',
+              'Marques, Ana Regina Bento',
+              'Marques, Benjamin Arnold',
+              'Marques, Erica Arnold Lima',
+              'Marques, José Francisco Lopes',
+              'Marques, Larissa Arnold',
+              'Marques, Samuel Munhoz',
+              'Marques Filho, José',
+              'Martinez Gonzalez, Mayree Carolina',
+              'Martins, Rosa Ferrici',
+              'Martins Escudero, Nicole Gabriela',
+              'Mascotte, Fernando Nogueira Masi',
+              'Maxeniano, Fernanda Noemi',
+              'Mazon, Caroline dos Santos',
+              'Medeiros, Lilian Alves',
+              'Mel',
+              'Melean Hinestroza, Diego Alejandro',
+              'Melo, Sandra Gomes de',
+              'Mendes, José Ribamar Silva',
+              'Mendes, Mateus Viana',
+              'Mendes da Silva, Renata Adriane',
+              'Mendonça, Brenda Giardini Briotto',
+              'Meneghete, Antônio',
+              'Meneghete, Neusa Aparecida Esteves',
+              'Micene, Jayme Amarildo',
+              'Moleiro, Eva Arnold',
+              'Moleiro, Felipe de Araújo',
+              'Moleiro, Henry Arnold',
+              'Moleiro, Mônica Arnold Lima',
+              'Moleiro, Zac Arnold',
+              'Molina, Ulises Ezequiel',
+              'Monteiro, Luíza Aquino',
+              'Monteiro, Nathalia Aquino',
+              'Monteiro, Sonia Aquino',
+              'Moraes, Judas Tadeu Oliveira de',
+              'Moraes, Letícia Cristina de',
+              'Morais, Diego Lucas de',
+              'Moreira, Ana Júlia Mendes',
+              'Moreira, Antônio de Moura Henriques',
+              'Moreira, Jeferson Pereira',
+              'Moreira, Silvia Helena Merlin Mendes',
+              'Moreira Magalhães, Jhon Derick Henri',
+              'Moscão, João Nivaldo',
+              'Moscão, Rosemeire Tavares',
+              'Moura, Demetrius de',
+              'Moura, Lilian Macedo de',
+              'Nakazoni, Laura',
+              'Nakazoni, Lucas Eighi',
+              'Nascimento, João Victor da Trindade',
+              'Nascimento, Pietro Rafael Alves do',
+              'Nascimento, Rafael Santos do',
+              'Nieves Jiménez, Jauzibeth Patricia',
+              'Nobile, Mariluce Aparecida',
+              'Oliveira, Alessandro Silva de',
+              'Oliveira, Alexandre Pires de',
+              'Oliveira, Antônio Roberto de',
+              'Oliveira, Aparecida Silva Divina de',
+              'Oliveira, Catarine Ester Benacon de',
+              'Oliveira, Claudia Aparecida de',
+              'Oliveira, Daniel Henrique da Costa',
+              'Oliveira, Ester Padilha',
+              'Oliveira, Franciele Cristina Ferreira',
+              'Oliveira, João Pedro de',
+              'Oliveira, Laura Padilha de',
+              'Oliveira, Luciano Alves de',
+              'Oliveira, Maria Olenir de',
+              'Oliveira, Pablo Wanes de',
+              'Oliveira, Patricia Aparecida de',
+              'Oliveira, Pedro Miguel Santos',
+              'Oliveira, Rosa Marina de',
+              'Oliveira, Sandra Padilha de',
+              'Oliveira, Sarah Machiewicz de',
+              'Oliveira, Tânia Pires de',
+              'Oliveira Junior, Edmir Roberto',
+              'Orsi, José Carlos',
+              'Padilha, Raquel Oliveira',
+              'Paiva, Dalva Das Graças',
+              'Paiva, Fatima Aparecida de',
+              'Paiva, José Lopes de',
+              'Paiva, José Maria Fonseca de',
+              'Paiva, Roseneyde Silva de',
+              'Palhares Simões de Faria, Emanuele',
+              'Pandolfi, Beatryz Gabrielle Cardoso',
+              'Pandolfi, Lucas Vaz',
+              'Pandolfi, Matheus Cardoso',
+              'Pandolfi, Michael Hudson',
+              'Paredes Coimbra, Patrícia Karolaine',
+              'Parima, Amélia Carolina Martinez',
+              'Parima, Eva Lucia Escobar',
+              'Parima, Jhoan Alberto Escobar',
+              'Parima Rodriguez, Josbert Jose',
+              'Parra, Cecilia Lorena',
+              'Parra, Claudio Lopes',
+              'Passos, Josiel Ferreira',
+              'Passos, Luzinete Soares',
+              'Paula, Alisson da Silva de',
+              'Paula, Camila Otaviano de',
+              'Paula, Daniela Cristina Otaviano de',
+              'Paula, Moisés de',
+              'Paula, Nicholas Otaviano de',
+              'Paula, Roseli Aparecida Maccioni',
+              'Paula Segundo, Edgar Rezende de',
+              'Pereira, Melissa Bermudez',
+              'Pereira, Raquel',
+              'Pereira de Morais, Renato',
+              'Peres, Robson Carlos Pinto',
+              'Pessoa, Edson Augusto Somazz',
+              'Pier, Gislaine Cristina Soares',
+              'Pimenta Filho, Noraldino',
+              'Pinheiro, Juliana Lopes',
+              'Pinheiro Mendonça, Rebeca Giardini Briotto',
+              'Pinto, Abigail Aparecida de Souza',
+              'Pinto, Gustavo Henrique Bonilha',
+              'Pinto, Marcelo Pedro',
+              'Pires, Gregory Henrique',
+              'Pires, Thalles Henrique de Loredo',
+              'Pires, Thallyta Raque de Loredo',
+              'Pires, Thaynna Ingrid de Loredo',
+              'Pires, Vanessa Raquel de Loredo',
+              'Pissarouk, Alexei Butignon',
+              'Porcati, Nadir Aparecida de Oliveira',
+              'Portugal, Dariane Cristina de Oliveira',
+              'Prado Silva, Bruna Caroline Paz',
+              'Prieto Torres, Daniel Santiago',
+              'Prieto Torres, Magaly Andrea',
+              'Puga, Andreza Gretchen Mauruto',
+              'Rafael, Elaine Cristina de Souza',
+              'Rafael, Gabriel de Souza',
+              'Rafael, Nicholas de Souza',
+              'Rafael, Rodrigo Antônio',
+              'Ramos, Joelma Rodrigues',
+              'Reginaldo, Livia Medina',
+              'Restivo, Delayla Stephanie Santos',
+              'Restivo, Diogo Ricardo Santos',
+              'Restivo, Domênica Janette Santos',
+              'Ribeiro, Alan Wilson Leite',
+              'Ribeiro, Joana Aparecida',
+              'Ribeiro, Liliam Reis',
+              'Ribeiro, Marcelino Aparecido',
+              'Ribeiro, Nessawana Helena Gonçalves',
+              'Ribeiro, Vinicius Henrique Ferreira',
+              'Ribeiro Gambaro, Maria Valentina',
+              'Ribeiro Leite Da Silva, Gabriel',
+              'Ribeiro Leite da Silva, Maria Clara',
+              'Rita, Desirée Gomes Heleno',
+              'Rita, Giovana Lorena da Cunha',
+              'Rita, Isís Lorena da',
+              'Rita, Luciano da Cunha',
+              'Rita, Victor Lorena da Cunha',
+              'Rocha, Delza Francisca Da',
+              'Rocha, Heitor Souza Rodrigues da',
+              'Rocha, Pedro Souza Rodrigues da',
+              'Rocha, Rafael Rodrigues Da',
+              'Rocha, Thaise Souza Silva',
+              'Rocha Junior, João Carlos Moreira da',
+              'Rodrigues, Berenice de Lourdes',
+              'Rodrigues, Matheus Weyner Nascimento',
+              'Rosa, Gustavo Bertho',
+              'Rosa, Lucimar Lopes',
+              'Rosa, Silvia Helena Loureiro Bertho',
+              'Rosa, William Bertho',
+              'Rossetti, Jessyca Fernanda',
+              'Rovere, Augusto Cesar',
+              'Rovere, Ben Duó',
+              'Rovere, Cesar Augusto',
+              'Rovere, Emily Pereira Baptista Duó',
+              'Rovere, Silvia Aparecida',
+              'Sá, Camila Cristina Hutiel de',
+              'Sá, Luciano Francisco de',
+              'Sabino, Ana Luiza Maccioni de Paula',
+              'Sabino, André Luis',
+              'Sadowski, Dayane Silva Paiva',
+              'Sadowski, Miguel Paiva',
+              'Saldaña Arriaza, Amalia',
+              'Sales, Eraldo Leandro Josué De',
+              'Salgado, Maria Clara Gasbarro',
+              'Salgado Junior, Miguel Angelo',
+              'Sampaio, Cleusa',
+              'Sampaio, Géssica Cristine',
+              'Sampaio, Giovana',
+              'Sanches, Alessandra Medina',
+              'Santana, Kenny Kobayashi',
+              'Santana, Kimi Kobayashi',
+              'Santana, Patricia de Melo Kobayashi',
+              'Santana, Tayná Josué de',
+              'Santana, Venner Moreira',
+              "Sant'anna, Osvaldina Maria Ferreira",
+              "Sant'anna, Renata Cristina",
+              "Sant'anna, Wilson Jorge",
+              'Santi Maria, André Luiz',
+              'Santos, Analu Neves Dos',
+              'Santos, Arthur Pereira dos',
+              'Santos, Carrie Goulart Spindola dos',
+              'Santos, Cristiano Pereira Dos',
+              'Santos, Eduardo Araújo dos',
+              'Santos, Elaine Cristina Baptista Dos',
+              'Santos, Eliane Candida dos',
+              'Santos, Eliane Cristina dos',
+              'Santos, Elionaldo Farias dos',
+              'Santos, Francisco Lidieno dos',
+              'Santos, Igor Eberlin dos',
+              'Santos, Iolanda Bento Dos',
+              'Santos, Isabella Pereira dos',
+              'Santos, Ivanildo Araújo dos',
+              'Santos, Jailson José Queiroz Dos',
+              'Santos, Jeanne Heyre Cartes Dos',
+              'Santos, Joelma de Jesus',
+              'Santos, Jovenal Bispo Dos',
+              'Santos, Kathlen Francelino',
+              'Santos, Lemuel Vieira',
+              'Santos, Lidiane Maion dos',
+              'Santos, Lohanna Cordeiro dos',
+              'Santos, Lucas Alexandre dos',
+              'Santos, Lucas Silva dos',
+              'Santos, Lucas Vieira',
+              'Santos, Lucivânia Cordeiro dos',
+              'Santos, Mackisuel Barbosa dos',
+              'Santos, Marcos Rodrigues',
+              'Santos, Marilene Pereira dos',
+              'Santos, Natalia',
+              'Santos, Pedro Henrique Ferreira dos',
+              'Santos, Regiane Marcondes dos',
+              'Santos, Ricardo Monteiro dos',
+              'Santos, Rosângela Alves',
+              'Santos, Stefany Cristina Pereira dos',
+              'Santos, Tatiane Faria dos',
+              'Santos, Valdecir Dos',
+              'Santos, Valdemir Dos',
+              'Santos, Vanessa Aparecida Dos',
+              'Santos, Vania Helaine Dos',
+              'Santos, Vaumir Dos',
+              'Santos, Victor Hugo da Silva',
+              'Santos, Waldeia Pereira Dos',
+              'Santos, Wellington Fernando dos',
+              'Santos Da Silva, Wagner',
+              'Santos Junior, Luis Carlos Soares dos',
+              'Savoy, Thais Regina',
+              'Scagliarini, Suely de Paula',
+              'Seixas, Nivaldo',
+              'Shibutani, Lucas Yoshinobi Araújo',
+              'Silva, Ademario Soares Da',
+              'Silva, Adriana Gomes Da',
+              'Silva, Alessandro Henrique Povero Da',
+              'Silva, Alexandre Cândido da',
+              'Silva, Alice Tiburcio',
+              'Silva, André Alves Da',
+              'Silva, André Alves da',
+              'Silva, Andressa Ribeiro da',
+              'Silva, Arlindo Vieira da',
+              'Silva, Bruno Tiburcio Lopes',
+              'Silva, Célia Therezinha da',
+              'Silva, Claúdia dos Santos',
+              'Silva, Claudia Maria da',
+              'Silva, Clélio Aparecido da',
+              'Silva, Cristiano Rosa da',
+              'Silva, Danielle Maria Da',
+              'Silva, Débora Cristina da',
+              'Silva, Ediclecia Nascimento',
+              'Silva, Edinaldo Santos',
+              'Silva, Elizabeth Nogueira da',
+              'Silva, Elton Vieira Da',
+              'Silva, Erika Barboza',
+              'Silva, Esther Elizabeth Machiewicz da',
+              'Silva, Fabiano Aguiá Da',
+              'Silva, Fernanda Atanasio da',
+              'Silva, Francisco Leopoldino Da',
+              'Silva, Gabriela Lima da',
+              'Silva, Heitor Galvão da Ferrari',
+              'Silva, Hiran Leme Da',
+              'Silva, Izadora Barboza',
+              'Silva, Jair Ferreira Da',
+              'Silva, Jaqueline Tiburcio',
+              'Silva, Jonas Ferreira Da',
+              'Silva, José Evandro Da',
+              'Silva, José Ferreira da',
+              'Silva, Josias Sebastião da',
+              'Silva, Kelly Cristina Almeida Da',
+              'Silva, Lilian Priscila Nascimento',
+              'Silva, Lucas André Gomes Alves da',
+              'Silva, Lucas Campanini Lopes Da',
+              'Silva, Luciano Leite Camargo Da',
+              'Silva, Maisa Cristina Teixeira Da',
+              'Silva, Manuela Tiburcio',
+              'Silva, Margarida da',
+              'Silva, Maria Cristina Da',
+              'Silva, Maria Cristina Pereira Dos Santos',
+              'Silva, Mariana Gomes Alves da',
+              'Silva, Mário Da',
+              'Silva, Mario Donizete',
+              'Silva, Mauricio Alexandre Gomes da',
+              'Silva, Miguel Alves da',
+              'Silva, Milena Jara Baraybar Povero da',
+              'Silva, Miriã Damaso da',
+              'Silva, Moroni Ferreira da',
+              'Silva, Murilo Prado',
+              'Silva, Murilo Jara Baraybar Povero da',
+              'Silva, Noely Aparecida Rodrigues Dos Santos',
+              'Silva, Paola Gabriela Vieira da',
+              'Silva, Paula Renon Souza Barboza',
+              'Silva, Pedro Vieira da',
+              'Silva, Rodolfo Souza',
+              'Silva, Rosangela Aguiar Da',
+              'Silva, Rosangela Correa',
+              'Silva, Samuel Alves',
+              'Silva, Samuel Cardoso',
+              'Silva, Severina Francisca Da',
+              'Silva, Sidnei Pereira da',
+              'Silva, Simone Aparecida da',
+              'Silva, Sonia Maria Da',
+              'Silva, Sueli Nogueira Da',
+              'Silva, Vinícius André Gomes Alves da',
+              'Silva, Vinicius Leite da',
+              'Silva, Zélia do Rosário Siqueira da',
+              'Silva, Zilda Irene Machiewicz da',
+              'Silva Miranda, Gisely',
+              'Silveira, Ricardo Dallaqua',
+              'Silveira, Ryan Daniel Merguliano',
+              'Simberg, Hadassa Alves Ferreira',
+              'Simões, Raquel',
+              'Simplício, Mônica da Silva',
+              'Siqueira, Elio Alcione',
+              'Soares, Gabriel',
+              'Soares, João Pedro Ramos',
+              'Sodré, Adriano Murça Neris',
+              'Sodré, Janaína Ferreira',
+              'Sojo, Isabela Melean',
+              'Sojo, Samantha Melean',
+              'Sojo Briceño, Yoselyn Yinnet',
+              'Sousa, Benedito Bento de',
+              'Sousa, Delsa dos Santos',
+              'Sousa, Janaína Bispo Pereira De',
+              'Sousa, Jessica Fernanda de',
+              'Sousa, José Morites Altair Araujo de',
+              'Sousa, Katarina Naiany Correa',
+              'Sousa, Luis Gustavo de',
+              'Sousa, Maria de Lourdes Cardoso de',
+              'Souza, Alessandra Cristina de',
+              'Souza, Cezar Augusto de',
+              'Souza, Dedier Bento De',
+              'Souza, Edna Maria dos Santos',
+              'Souza, Enzo Gabriel dos Santos',
+              'Souza, Fabio Henrique Sadowski',
+              'Souza, José Claudio de',
+              'Souza, José Ferreira De',
+              'Souza, Joselene Bento de',
+              'Souza, Juliana Paula Borges de',
+              'Souza, Katyanne Patrícia Maria de',
+              'Souza, Lorrane Maria',
+              'Souza, Luiz Carlos de',
+              'Souza, Marcelo Lopes de',
+              'Souza, Marciana Maria da Silva',
+              'Souza, Maria do Carmo Queiroz de',
+              'Souza, Maria Francisca Fernandes de',
+              'Souza, Matheus Henrique Vieira de',
+              'Souza, Paulo Sergio Leite de',
+              'Souza, Raysha Kethulli Maria de',
+              'Souza, Ryan Carlos da Silva',
+              'Souza, Sandra Lucia Vagli Ferreira de',
+              'Souza, Viviana Cassia de',
+              'Spina, Crissie Kelly',
+              'Spina, Ednei Paulo',
+              'Spina, Nicole',
+              'Spindola dos, Luis Fernando Santos',
+              'Tardelli, Eliane Andréia Eberlin',
+              'Targa, Davi Aparecido',
+              'Tavares, Antônia Maria',
+              'Tavares, Fernando Martins',
+              'Tavares, João de Moraes Barrionuevo',
+              'Tavares, Marli',
+              'Teixeira, Creusa',
+              'Teixeira, Maria Eugenia',
+              'Teixeira, Neide Moreira',
+              'Teixeira, Osmar',
+              'Valentim, Edson Renato',
+              'Valentim, Lenilza de',
+              'Valle, Jose Wilker do',
+              'Varela, Arielle da Silva',
+              'Varela, Emanuel da Silva',
+              'Varela, Isadora Gabriele da Silva',
+              'Venancio, Julia Moura',
+              'Venancio, Raniere Wolfgang Rezende',
+              'Ventura, Flaviano Cesar',
+              'Ventura, Laura Leite',
+              'Ventura, Lucia Helena Leite',
+              'Vicente, Agnes Miranda',
+              'Vicente, Denis Marcelo Miranda',
+              'Vicente, Jamile Andrade',
+              'Vicente, Matias Miranda',
+              'Vieira, Cássia Martins',
+              'Vieira, Yasmin Oliveira',
+              'Vilaverde, Helena Fredo',
+              'Vitória Paixão Santos, Keila',
+              'Zague, Ana Rita Vieira',
+              'Zague Filho, Oswaldo',
+              'Zancheta, Priscila',
+              'Zanona, Arthur Serra',
+              'Zanona, Benjamin Serra',
+              'Zanona, Nathália Serra'
+            ]
+
+            const batch = writeBatch(db.value)
+            nameList.forEach(fullName => {
+              const cleanedName = fullName.replace(/\*/g, '').trim()
+              const parts = cleanedName.split(', ')
+              const formattedName =
+                parts.length > 1 ? `${parts[1]} ${parts[0]}` : parts[0]
+
+              const newMemberRef = doc(membersCollectionRef)
+              batch.set(newMemberRef, {
+                name: formattedName,
+                organization: 'Outro'
+              })
+            })
+            await batch.commit()
+            console.log('Dados iniciais adicionados.')
+          }
+
+          function loadAttendanceForDate(dateString) {
+            if (unsubscribeAttendance) unsubscribeAttendance()
+
+            const attendanceDocRef = doc(attendanceCollectionRef, dateString)
+
+            unsubscribeAttendance = onSnapshot(
+              attendanceDocRef,
+              doc => {
+                presentMemberIds.value = doc.exists()
+                  ? doc.data().presentMemberIds || []
+                  : []
+              },
+              error => {
+                console.error(
+                  `Erro ao carregar presença para ${dateString}:`,
+                  error
+                )
+              }
+            )
+
+            // Recalcula o histórico de presença relativo à data selecionada
+            loadRecentAttendance(dateString)
+          }
+
+          watch(selectedDate, (newDate, oldDate) => {
+            if (newDate && newDate !== oldDate) {
+              loadAttendanceForDate(newDate)
+            }
+          })
+
+          const saveAttendance = () => {
+            clearTimeout(autoSaveTimer)
+            autoSaveTimer = setTimeout(async () => {
+              const dateToSave = selectedDate.value
+              const currentPresentIds = [...presentMemberIds.value]
+              const attendanceDocRef = doc(attendanceCollectionRef, dateToSave)
+              try {
+                await setDoc(
+                  attendanceDocRef,
+                  { presentMemberIds: currentPresentIds },
+                  { merge: true }
+                )
+
+                // Força a recarga dos dados de status após salvar com sucesso
+                await loadRecentAttendance(dateToSave)
+              } catch (error) {
+                console.error('Erro ao salvar presença: ', error)
+                showNotification('Falha ao salvar.', 'error')
+              }
+            }, 1500)
+          }
+
+          watch(presentMemberIds, saveAttendance, { deep: true })
+
+          // --- Member Management ---
+          async function addMember() {
+            if (!newMember.value.name.trim()) return
+            try {
+              await addDoc(membersCollectionRef, { ...newMember.value })
+              showNotification('Membro adicionado!', 'success')
+              newMember.value = {
+                name: '',
+                organization: organizationOptions[0]
+              }
+              showAddMemberModal.value = false
+            } catch (error) {
+              console.error('Erro ao adicionar membro:', error)
+              showNotification('Falha ao adicionar membro.', 'error')
+            }
+          }
+
+          async function updateMemberOrganization(memberId, newOrganization) {
+            const memberDocRef = doc(membersCollectionRef, memberId)
+            try {
+              await updateDoc(memberDocRef, { organization: newOrganization })
+              showNotification('Organização atualizada.', 'success')
+            } catch (error) {
+              console.error('Erro ao atualizar organização:', error)
+              showNotification('Falha ao atualizar organização.', 'error')
+            }
+          }
+
+          function startNameEdit(member) {
+            editingMemberId.value = member.id
+            editingName.value = member.name
+          }
+
+          function cancelNameEdit() {
+            editingMemberId.value = null
+            editingName.value = ''
+          }
+
+          async function saveNameEdit(member) {
+            const trimmedName = editingName.value.trim()
+            if (!trimmedName) {
+              showNotification('O nome não pode ficar em branco.', 'error')
+              return
+            }
+            if (trimmedName === member.name) {
+              cancelNameEdit()
+              return
+            }
+
+            const memberDocRef = doc(membersCollectionRef, member.id)
+            try {
+              await updateDoc(memberDocRef, { name: trimmedName })
+              showNotification('Nome atualizado com sucesso!', 'success')
+            } catch (error) {
+              console.error('Erro ao salvar nome:', error)
+              showNotification('Falha ao salvar nome.', 'error')
+            } finally {
+              cancelNameEdit()
+            }
+          }
+
+          // --- Status Indicator Logic ---
+          function getPreviousSundays(dateStr, count) {
+            const sundays = []
+            const currentDate = new Date(dateStr + 'T12:00:00') // Use noon to avoid timezone issues
+
+            // Encontra o último domingo antes ou na data atual
+            while (currentDate.getUTCDay() !== 0) {
+              currentDate.setUTCDate(currentDate.getUTCDate() - 1)
+            }
+
+            for (let i = 0; i < count; i++) {
+              sundays.push(currentDate.toISOString().split('T')[0])
+              currentDate.setUTCDate(currentDate.getUTCDate() - 7)
+            }
+            return sundays
+          }
+
+          async function loadRecentAttendance(currentDateStr) {
+            lastThreeSundays.value = getPreviousSundays(currentDateStr, 3)
+            const datesToFetch = lastThreeSundays.value
+            const newRecentAttendance = {}
+
+            for (const date of datesToFetch) {
+              const docRef = doc(attendanceCollectionRef, date)
+              const docSnap = await getDoc(docRef)
+              if (docSnap.exists()) {
+                newRecentAttendance[date] =
+                  docSnap.data().presentMemberIds || []
+              } else {
+                newRecentAttendance[date] = null // Marca como sem dados disponíveis
+              }
+            }
+            recentAttendance.value = newRecentAttendance
+            memberStatusCache.value = {} // Limpa o cache ao carregar novos dados
+          }
+
+          function getMemberStatus(memberId) {
+            if (memberStatusCache.value[memberId]) {
+              return memberStatusCache.value[memberId]
+            }
+
+            const dates = lastThreeSundays.value
+            if (dates.length < 3) return 'blue'
+
+            const attendanceHistory = dates.map(date => {
+              const attendanceList = recentAttendance.value[date]
+              if (
+                attendanceList === null ||
+                typeof attendanceList === 'undefined'
+              ) {
+                return 'no-data'
+              }
+              return attendanceList.includes(memberId)
+            })
+
+            if (attendanceHistory.includes('no-data')) {
+              memberStatusCache.value[memberId] = 'blue'
+              return 'blue'
+            }
+
+            const [last, secondLast, thirdLast] = attendanceHistory
+
+            if (last && secondLast && thirdLast) {
+              memberStatusCache.value[memberId] = 'green'
+              return 'green'
+            }
+            if (!last && !secondLast && !thirdLast) {
+              memberStatusCache.value[memberId] = 'red'
+              return 'red'
+            }
+            if (!last && !secondLast) {
+              memberStatusCache.value[memberId] = 'yellow'
+              return 'yellow'
+            }
+
+            memberStatusCache.value[memberId] = 'blue'
+            return 'blue'
+          }
+
+          function getMemberStatusClass(memberId) {
+            const status = getMemberStatus(memberId)
+            return {
+              'bg-green-500': status === 'green',
+              'bg-yellow-500': status === 'yellow',
+              'bg-red-500': status === 'red',
+              'bg-blue-500': status === 'blue'
+            }
+          }
+
+          // --- Modal Openers ---
+          const openAddMemberModal = () => {
+            isMenuOpen.value = false
+            showAddMemberModal.value = true
+          }
+          const openExportModal = () => {
+            isMenuOpen.value = false
+            showExportModal.value = true
+          }
+          const openImportModal = () => {
+            isMenuOpen.value = false
+            showImportModal.value = true
+          }
+          const openDashboardModal = () => {
+            isMenuOpen.value = false
+            const today = new Date()
+            const thirtyDaysAgo = new Date(
+              new Date().setDate(today.getDate() - 30)
+            )
+            reportStartDate.value = thirtyDaysAgo.toISOString().split('T')[0]
+            reportEndDate.value = today.toISOString().split('T')[0]
+            dailyReportDate.value = today.toISOString().split('T')[0]
+            showDashboardModal.value = true
+            setTimeout(() => {
+              generateReport()
+              generateDailyReport()
+            }, 100)
+          }
+
+          // --- Import/Export & Reporting ---
+          async function exportToExcel() {
+            if (!exportDate.value) {
+              showNotification('Por favor, selecione uma data.', 'error')
+              return
+            }
+            isExporting.value = true
+            try {
+              const attendanceDocRef = doc(
+                attendanceCollectionRef,
+                exportDate.value
+              )
+              const attendanceSnap = await getDoc(attendanceDocRef)
+              const attendanceData = attendanceSnap.exists()
+                ? attendanceSnap.data().presentMemberIds
+                : []
+
+              const exportData = members.value.map(member => ({
+                Nome: member.name,
+                Organizacao: member.organization,
+                Status: attendanceData.includes(member.id)
+                  ? 'Presente'
+                  : 'Ausente'
+              }))
+
+              if (exportData.length === 0) {
+                showNotification(
+                  'Não há membros na lista para exportar.',
+                  'error'
+                )
+                return
+              }
+
+              const worksheet = XLSX.utils.json_to_sheet(exportData)
+              const workbook = XLSX.utils.book_new()
+              XLSX.utils.book_append_sheet(workbook, worksheet, 'Presença')
+              XLSX.writeFile(
+                workbook,
+                `Relatorio_Presenca_${exportDate.value}.xlsx`
+              )
+              showNotification('Relatório exportado com sucesso!', 'success')
+            } catch (error) {
+              console.error('Erro ao exportar:', error)
+              showNotification('Falha ao exportar relatório.', 'error')
+            } finally {
+              isExporting.value = false
+              showExportModal.value = false
+            }
+          }
+
+          async function generateReport() {
+            isGeneratingReport.value = true
+            try {
+              const q = query(
+                attendanceCollectionRef,
+                where('__name__', '>=', reportStartDate.value),
+                where('__name__', '<=', reportEndDate.value)
+              )
+              const querySnapshot = await getDocs(q)
+
+              const reportData = querySnapshot.docs.map(doc => ({
+                date: doc.id,
+                ...doc.data()
+              }))
+              processReportData(reportData)
+            } catch (error) {
+              console.error('Erro ao gerar relatório:', error)
+              showNotification('Falha ao gerar relatório.', 'error')
+            } finally {
+              isGeneratingReport.value = false
+            }
+          }
+
+          function processReportData(data) {
+            if (data.length === 0) {
+              reportMetrics.value = {
+                averageAttendance: 0,
+                peakAttendance: { count: 0, date: 'N/A' }
+              }
+              if (totalAttendanceChart) totalAttendanceChart.destroy()
+              if (orgAttendanceChart) orgAttendanceChart.destroy()
+              showNotification(
+                'Nenhum dado de presença encontrado no período.',
+                'error'
+              )
+              return
+            }
+
+            let totalAttendance = 0
+            let peak = { count: 0, date: 'N/A' }
+            const orgCounts = organizationOptions.reduce(
+              (acc, org) => ({ ...acc, [org]: 0 }),
+              {}
+            )
+
+            data.forEach(day => {
+              const count = day.presentMemberIds.length
+              totalAttendance += count
+              if (count > peak.count) peak = { count, date: day.date }
+
+              day.presentMemberIds.forEach(id => {
+                const member = members.value.find(m => m.id === id)
+                if (member && orgCounts[member.organization] !== undefined) {
+                  orgCounts[member.organization]++
+                }
+              })
+            })
+
+            reportMetrics.value.averageAttendance =
+              Math.round(totalAttendance / data.length) || 0
+            reportMetrics.value.peakAttendance = peak
+
+            renderTotalAttendanceChart(data)
+            renderOrgAttendanceChart(orgCounts)
+          }
+
+          function renderChart(canvasId, chartInstance, config) {
+            const ctx = document.getElementById(canvasId)?.getContext('2d')
+            if (!ctx) return null
+            if (chartInstance) chartInstance.destroy()
+            return new Chart(ctx, config)
+          }
+
+          function renderTotalAttendanceChart(data) {
+            data.sort((a, b) => new Date(a.date) - new Date(b.date))
+            totalAttendanceChart = renderChart(
+              'totalAttendanceChart',
+              totalAttendanceChart,
+              {
+                type: 'line',
+                data: {
+                  labels: data.map(d => d.date),
+                  datasets: [
+                    {
+                      label: 'Frequência Total',
+                      data: data.map(d => d.presentMemberIds.length),
+                      borderColor: '#4ade80',
+                      backgroundColor: 'rgba(74, 222, 128, 0.2)',
+                      tension: 0.1,
+                      fill: true
+                    }
+                  ]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: {
+                    y: { beginAtZero: true, ticks: { color: '#94a3b8' } },
+                    x: { ticks: { color: '#94a3b8' } }
+                  },
+                  plugins: { legend: { labels: { color: '#e2e8f0' } } }
+                }
+              }
+            )
+          }
+
+          function renderOrgAttendanceChart(orgData) {
+            orgAttendanceChart = renderChart(
+              'orgAttendanceChart',
+              orgAttendanceChart,
+              {
+                type: 'doughnut',
+                data: {
+                  labels: Object.keys(orgData),
+                  datasets: [
+                    {
+                      data: Object.values(orgData),
+                      backgroundColor: [
+                        '#3b82f6',
+                        '#10b981',
+                        '#f97316',
+                        '#ef4444',
+                        '#8b5cf6',
+                        '#eab308',
+                        '#64748b'
+                      ],
+                      hoverOffset: 4
+                    }
+                  ]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { position: 'top', labels: { color: '#e2e8f0' } }
+                  }
+                }
+              }
+            )
+          }
+
+          async function generateDailyReport() {
+            isGeneratingDailyReport.value = true
+            try {
+              const attendanceDocRef = doc(
+                attendanceCollectionRef,
+                dailyReportDate.value
+              )
+              const docSnap = await getDoc(attendanceDocRef)
+
+              if (!docSnap.exists()) {
+                showNotification(
+                  `Nenhum registro para ${dailyReportDate.value}.`,
+                  'error'
+                )
+                if (dailyOrgChart) dailyOrgChart.destroy()
+                renderDailyOrgChart({}) // Render empty chart
+                return
+              }
+
+              const presentIds = docSnap.data().presentMemberIds || []
+              const orgCounts = organizationOptions.reduce(
+                (acc, org) => ({ ...acc, [org]: 0 }),
+                {}
+              )
+
+              presentIds.forEach(id => {
+                const member = members.value.find(m => m.id === id)
+                if (member && orgCounts[member.organization] !== undefined) {
+                  orgCounts[member.organization]++
+                }
+              })
+              renderDailyOrgChart(orgCounts)
+            } catch (error) {
+              console.error('Erro ao gerar relatório diário:', error)
+              showNotification('Falha ao gerar relatório diário.', 'error')
+            } finally {
+              isGeneratingDailyReport.value = false
+            }
+          }
+
+          function renderDailyOrgChart(orgData) {
+            dailyOrgChart = renderChart(
+              'dailyOrgAttendanceChart',
+              dailyOrgChart,
+              {
+                type: 'doughnut',
+                data: {
+                  labels: Object.keys(orgData),
+                  datasets: [
+                    {
+                      data: Object.values(orgData),
+                      backgroundColor: [
+                        '#3b82f6',
+                        '#10b981',
+                        '#f97316',
+                        '#ef4444',
+                        '#8b5cf6',
+                        '#eab308',
+                        '#64748b'
+                      ]
+                    }
+                  ]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { position: 'top', labels: { color: '#e2e8f0' } },
+                    title: {
+                      display: true,
+                      text: `Distribuição de Presença em ${dailyReportDate.value}`,
+                      color: '#e2e8f0'
+                    }
+                  }
+                }
+              }
+            )
+          }
+
+          const exportBackup = async () => {
+            isMenuOpen.value = false
+            try {
+              const attendanceSnapshot = await getDocs(attendanceCollectionRef)
+              const attendanceData = {}
+              attendanceSnapshot.forEach(doc => {
+                attendanceData[doc.id] = doc.data().presentMemberIds
+              })
+
+              const backupData = {
+                members: members.value,
+                attendance: attendanceData
+              }
+
+              const jsonString = JSON.stringify(backupData, null, 2)
+              const blob = new Blob([jsonString], { type: 'application/json' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `backup_presenca_${
+                new Date().toISOString().split('T')[0]
+              }.json`
+              document.body.appendChild(a)
+              a.click()
+              document.body.removeChild(a)
+              URL.revokeObjectURL(url)
+              showNotification('Backup completo exportado!', 'success')
+            } catch (error) {
+              console.error('Erro ao exportar backup:', error)
+              showNotification('Falha ao exportar backup completo.', 'error')
+            }
+          }
+
+          function handleFileSelect(event) {
+            importFile.value = event.target.files[0]
+          }
+
+          async function importBackup() {
+            if (!importFile.value) {
+              showNotification('Por favor, selecione um arquivo.', 'error')
+              return
+            }
+
+            const reader = new FileReader()
+            reader.onload = async e => {
+              try {
+                const backupData = JSON.parse(e.target.result)
+
+                if (!backupData.members || !backupData.attendance) {
+                  throw new Error('Formato do arquivo de backup inválido.')
+                }
+
+                // Apagar dados antigos
+                const oldMembers = await getDocs(membersCollectionRef)
+                const oldAttendance = await getDocs(attendanceCollectionRef)
+                const deleteBatch = writeBatch(db.value)
+                oldMembers.forEach(doc => deleteBatch.delete(doc.ref))
+                oldAttendance.forEach(doc => deleteBatch.delete(doc.ref))
+                await deleteBatch.commit()
+
+                // Adicionar novos dados
+                const addBatch = writeBatch(db.value)
+                backupData.members.forEach(member => {
+                  // Se os membros no JSON não tiverem ID, criamos um novo
+                  const memberRef = member.id
+                    ? doc(membersCollectionRef, member.id)
+                    : doc(membersCollectionRef)
+                  addBatch.set(memberRef, {
+                    name: member.name,
+                    organization: member.organization
+                  })
+                })
+                Object.entries(backupData.attendance).forEach(
+                  ([date, presentIds]) => {
+                    const attendanceRef = doc(attendanceCollectionRef, date)
+                    addBatch.set(attendanceRef, {
+                      presentMemberIds: presentIds
+                    })
+                  }
+                )
+                await addBatch.commit()
+
+                showNotification(`Backup importado com sucesso!`, 'success')
+              } catch (error) {
+                console.error('Erro na importação de backup:', error)
+                showNotification(
+                  error.message || 'Erro ao processar o arquivo.',
+                  'error'
+                )
+              } finally {
+                showImportModal.value = false
+                importFile.value = null
+              }
+            }
+            reader.readAsText(importFile.value)
+          }
+
+          onMounted(initializeFirebase)
+
+          return {
+            members,
+            presentMemberIds,
+            searchTerm,
+            isLoading,
+            isExporting,
+            showAddMemberModal,
+            showExportModal,
+            showDashboardModal,
+            showImportModal,
+            isMenuOpen,
+            newMember,
+            notification,
+            filteredMembers,
+            organizationOptions,
+            selectedOrganizations,
+            presentFilteredCount,
+            editingMemberId,
+            editingName,
+            selectedDate,
+            exportDate,
+            importFile,
+            addMember,
+            updateMemberOrganization,
+            isPresent,
+            togglePresence,
+            toggleOrgFilter,
+            startNameEdit,
+            cancelNameEdit,
+            saveNameEdit,
+            openAddMemberModal,
+            openExportModal,
+            openDashboardModal,
+            openImportModal,
+            exportBackup,
+            exportToExcel,
+            handleFileSelect,
+            importBackup,
+            debouncedSearch,
+            reportStartDate,
+            reportEndDate,
+            dailyReportDate,
+            reportMetrics,
+            isGeneratingReport,
+            isGeneratingDailyReport,
+            generateReport,
+            generateDailyReport,
+            getMemberStatusClass
+          }
+        }
+      }).mount('#app')
+    </script>
+  </body>
+</html>
