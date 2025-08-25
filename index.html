@@ -65,7 +65,6 @@
   </head>
   <body class="bg-slate-900 text-slate-200 antialiased">
     <div id="app" v-cloak class="max-w-5xl mx-auto p-2 sm:p-4">
-      <!-- Notificação Flutuante -->
       <transition name="fade">
         <div
           v-if="notification.show"
@@ -76,7 +75,6 @@
         </div>
       </transition>
 
-      <!-- Menu Lateral (Hambúrguer) -->
       <div
         v-if="isMenuOpen"
         @click="isMenuOpen = false"
@@ -187,7 +185,6 @@
                 </button>
               </li>
             </ul>
-            <!-- Legenda -->
             <div class="mt-8 pt-4 border-t border-slate-700">
               <h3
                 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"
@@ -233,12 +230,10 @@
         </aside>
       </transition>
 
-      <!-- Cabeçalho -->
       <header
         class="mb-4 flex items-center justify-between relative bg-slate-900/70 backdrop-blur-sm pt-2 pb-3 border-b border-slate-700/50"
       >
         <div class="w-8"></div>
-        <!-- Espaçador para centralizar o título -->
         <h1
           class="text-xl sm:text-2xl font-bold text-white text-center absolute left-1/2 -translate-x-1/2 w-full px-12"
         >
@@ -265,11 +260,8 @@
         </button>
       </header>
 
-      <!-- Painel de Controles e Lista -->
       <div class="bg-slate-800 p-2 sm:p-4 rounded-xl shadow-2xl">
-        <!-- Layout de Controles Ajustado -->
         <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-          <!-- Esquerda Superior (Mobile) / Coluna 1 (Desktop) -->
           <div>
             <label
               for="search"
@@ -286,7 +278,6 @@
             />
           </div>
 
-          <!-- Direita Superior (Mobile) / Coluna 2 (Desktop) -->
           <div>
             <label
               for="selectedDate"
@@ -301,7 +292,6 @@
             />
           </div>
 
-          <!-- Direita Inferior (Mobile) / Coluna 3 (Desktop) -->
           <div
             class="bg-slate-900/50 rounded-lg p-2 md:p-4 flex items-center justify-between md:flex-col md:justify-center row-start-3 md:row-start-1 col-span-2 md:col-span-1"
           >
@@ -318,7 +308,6 @@
             </div>
           </div>
 
-          <!-- Esquerda Inferior (Mobile) / Linha 2 (Desktop) -->
           <div class="col-span-2 md:col-span-3">
             <label class="block text-xs font-medium text-slate-400 mb-2"
               >Filtrar por Organização:</label
@@ -346,7 +335,6 @@
 
         <hr class="border-slate-700 my-3" />
 
-        <!-- Lista de Membros -->
         <div>
           <div class="max-h-[60vh] overflow-y-auto no-scrollbar">
             <ul class="divide-y divide-slate-700">
@@ -500,7 +488,6 @@
                   </div>
                 </div>
 
-                <!-- O toggle agora é apenas um indicador visual, o clique é tratado pelo <li> -->
                 <div
                   class="relative inline-flex items-center pointer-events-none"
                 >
@@ -520,7 +507,6 @@
         </div>
       </div>
 
-      <!-- Modals -->
       <div
         v-if="showAddMemberModal"
         class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-20 p-4"
@@ -676,7 +662,6 @@
             Análises de Frequência
           </h3>
           <div class="flex-grow overflow-y-auto no-scrollbar space-y-6 pr-2">
-            <!-- Análise por Período -->
             <div class="bg-slate-700/50 p-4 rounded-lg">
               <h4 class="font-semibold mb-3 text-base">Análise por Período</h4>
               <div class="flex flex-col sm:flex-row gap-4 mb-4">
@@ -745,7 +730,6 @@
                 </div>
               </div>
             </div>
-            <!-- Frequência da Organização por Dia -->
             <div class="bg-slate-700/50 p-4 rounded-lg">
               <h4 class="font-semibold mb-3 text-base">
                 Frequência da Organização por Dia
@@ -925,7 +909,6 @@
           // --- Firebase State ---
           const db = ref(null)
           const auth = ref(null)
-          const isFirebaseReady = ref(false) // Flag to control initialization
           let membersCollectionRef = null
           let attendanceCollectionRef = null
           let unsubscribeMembers = null
@@ -997,21 +980,34 @@
           // --- Firebase Initialization & Listeners ---
           async function initializeFirebase() {
             try {
-                const firebaseConfig = {
-                  apiKey: "AIzaSyAn0P7VlZfd9F2zFEZBaYhn26Apf065mPY",
-                  authDomain: "lista-presenca-ala-progresso.firebaseapp.com",
-                  projectId: "lista-presenca-ala-progresso",
-                  storageBucket: "lista-presenca-ala-progresso.firebasestorage.app",
-                  messagingSenderId: "1052502127816",
-                  appId: "1:1052502127816:web:0ac16221fc982e0a9ca1fd"
-                };
+              const firebaseConfig = {
+                apiKey: 'AIzaSyAn0P7VlZfd9F2zFEZBaYhn26Apf065mPY',
+                authDomain: 'lista-presenca-ala-progresso.firebaseapp.com',
+                projectId: 'lista-presenca-ala-progresso',
+                storageBucket: 'lista-presenca-ala-progresso.appspot.com', // CORRIGIDO
+                messagingSenderId: '1052502127816',
+                appId: '1:1052502127816:web:0ac16221fc982e0a9ca1fd'
+              }
 
               const app = initializeApp(firebaseConfig)
               db.value = getFirestore(app)
               auth.value = getAuth(app)
 
-              await signInAnonymously(auth.value)
-              isFirebaseReady.value = true // Set flag after successful initialization and sign-in
+              onAuthStateChanged(auth.value, user => {
+                if (user) {
+                  // Usuário autenticado anonimamente, configurar listeners.
+                  setupFirestoreListeners()
+                } else {
+                  // Tenta autenticar se não houver usuário.
+                  signInAnonymously(auth.value).catch(error => {
+                    console.error('Falha ao autenticar anonimamente:', error)
+                    showNotification(
+                      'Falha na autenticação com o banco de dados.',
+                      'error'
+                    )
+                  })
+                }
+              })
             } catch (error) {
               console.error('Erro ao inicializar Firebase:', error)
               isLoading.value = false
@@ -1745,13 +1741,6 @@
             }
           })
 
-          // CORREÇÃO: Adiciona um watch para iniciar os listeners quando o Firebase estiver pronto
-          watch(isFirebaseReady, isReady => {
-            if (isReady) {
-              setupFirestoreListeners()
-            }
-          })
-
           const saveAttendance = () => {
             clearTimeout(autoSaveTimer)
             autoSaveTimer = setTimeout(async () => {
@@ -2367,10 +2356,3 @@
     </script>
   </body>
 </html>
-
-
-
-
-
-
-
