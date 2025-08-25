@@ -997,15 +997,14 @@
           // --- Firebase Initialization & Listeners ---
           async function initializeFirebase() {
             try {
-              const firebaseConfig = {
-                apiKey: 'AIzaSyAn0P7VlZfd9F2zFEZBaYhn26Apf065mPY',
-                authDomain: 'lista-presenca-ala-progresso.firebaseapp.com',
-                projectId: 'lista-presenca-ala-progresso',
-                storageBucket:
-                  'lista-presenca-ala-progresso.firebasestorage.app',
-                messagingSenderId: '1052502127816',
-                appId: '1:1052502127816:web:0ac16221fc982e0a9ca1fd'
-              }
+                const firebaseConfig = {
+                  apiKey: "AIzaSyAn0P7VlZfd9F2zFEZBaYhn26Apf065mPY",
+                  authDomain: "lista-presenca-ala-progresso.firebaseapp.com",
+                  projectId: "lista-presenca-ala-progresso",
+                  storageBucket: "lista-presenca-ala-progresso.firebasestorage.app",
+                  messagingSenderId: "1052502127816",
+                  appId: "1:1052502127816:web:0ac16221fc982e0a9ca1fd"
+                };
 
               const app = initializeApp(firebaseConfig)
               db.value = getFirestore(app)
@@ -2368,6 +2367,7 @@
     </script>
   </body>
 </html>
+
 
 
 
