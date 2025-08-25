@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lista de Presença Sacramental (v17.2)</title>
+    <title>Lista de Presença Sacramental (v17.3)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -850,7 +850,6 @@
       import {
         getAuth,
         signInAnonymously,
-        signInWithCustomToken,
         onAuthStateChanged
       } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js'
       import {
@@ -866,8 +865,7 @@
         getDocs,
         query,
         where,
-        deleteDoc,
-        setLogLevel
+        deleteDoc
       } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js'
 
       const { createApp, ref, computed, onMounted, watch } = Vue
@@ -920,9 +918,18 @@
           })
 
           // --- Status Indicator State ---
-          const recentAttendance = ref({}) // { 'YYYY-MM-DD': ['id1', 'id2'], ... }
+          const recentAttendance = ref({})
           const lastThreeSundays = ref([])
-          const memberStatusCache = ref({}) // Cache for member status to improve performance
+          const memberStatusCache = ref({})
+
+          // --- Firebase State ---
+          const db = ref(null)
+          const auth = ref(null)
+          const isFirebaseReady = ref(false) // Flag to control initialization
+          let membersCollectionRef = null
+          let attendanceCollectionRef = null
+          let unsubscribeMembers = null
+          let unsubscribeAttendance = null
 
           // --- Chart & Timer References ---
           let totalAttendanceChart = null
@@ -930,17 +937,6 @@
           let dailyOrgChart = null
           let autoSaveTimer = null
           let debounceTimer = null
-
-          // --- Firebase References ---
-          const db = ref(null)
-          const auth = ref(null)
-          const appId = ref(
-            typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'
-          )
-          let membersCollectionRef = null
-          let attendanceCollectionRef = null
-          let unsubscribeMembers = null
-          let unsubscribeAttendance = null
 
           // --- Utility Functions ---
           function showNotification(message, type = 'info', duration = 3000) {
@@ -991,7 +987,6 @@
             }
           }
 
-          // --- Search Debounce ---
           const debouncedSearch = value => {
             clearTimeout(debounceTimer)
             debounceTimer = setTimeout(() => {
@@ -1006,7 +1001,7 @@
                 apiKey: 'AIzaSyCF3cAsGdkg8I07KZh08tfvJIdEn7l5FaA',
                 authDomain: 'lista-presenca-ala.firebaseapp.com',
                 projectId: 'lista-presenca-ala',
-                storageBucket: 'lista-presenca-ala.firebasestorage.app',
+                storageBucket: 'lista-presenca-ala.appspot.com',
                 messagingSenderId: '207348497162',
                 appId: '1:207348497162:web:a7dcf875c8cf1b82b358f3'
               }
@@ -1015,43 +1010,28 @@
               db.value = getFirestore(app)
               auth.value = getAuth(app)
 
-              onAuthStateChanged(auth.value, user => {
-                if (user) {
-                  setupFirestoreListeners()
-                } else {
-                  const token =
-                    typeof __initial_auth_token !== 'undefined'
-                      ? __initial_auth_token
-                      : null
-                  const authPromise = token
-                    ? signInWithCustomToken(auth.value, token)
-                    : signInAnonymously(auth.value)
-                  authPromise.catch(err =>
-                    console.error('Erro de autenticação:', err)
-                  )
-                }
-              })
+              await signInAnonymously(auth.value)
+              isFirebaseReady.value = true // Set flag after successful initialization and sign-in
             } catch (error) {
               console.error('Erro ao inicializar Firebase:', error)
               isLoading.value = false
-              showNotification(error.message, 'error')
+              showNotification(
+                'Falha ao conectar com o banco de dados.',
+                'error'
+              )
             }
           }
 
           function setupFirestoreListeners() {
-            const basePath = `/artifacts/${appId.value}/public/data`
-            membersCollectionRef = collection(db.value, `${basePath}/members`)
-            attendanceCollectionRef = collection(
-              db.value,
-              `${basePath}/attendance`
-            )
+            membersCollectionRef = collection(db.value, `members`)
+            attendanceCollectionRef = collection(db.value, `attendance`)
 
             if (unsubscribeMembers) unsubscribeMembers()
             unsubscribeMembers = onSnapshot(
               query(membersCollectionRef),
               snapshot => {
                 if (snapshot.empty && isLoading.value) {
-                  addInitialData() // Seed data if collection is empty
+                  addInitialData()
                 } else {
                   const memberList = snapshot.docs.map(doc => ({
                     id: doc.id,
@@ -1756,13 +1736,19 @@
               }
             )
 
-            // Recalcula o histórico de presença relativo à data selecionada
             loadRecentAttendance(dateString)
           }
 
           watch(selectedDate, (newDate, oldDate) => {
             if (newDate && newDate !== oldDate) {
               loadAttendanceForDate(newDate)
+            }
+          })
+
+          // CORREÇÃO: Adiciona um watch para iniciar os listeners quando o Firebase estiver pronto
+          watch(isFirebaseReady, isReady => {
+            if (isReady) {
+              setupFirestoreListeners()
             }
           })
 
@@ -1778,8 +1764,6 @@
                   { presentMemberIds: currentPresentIds },
                   { merge: true }
                 )
-
-                // Força a recarga dos dados de status após salvar com sucesso
                 await loadRecentAttendance(dateToSave)
               } catch (error) {
                 console.error('Erro ao salvar presença: ', error)
@@ -1854,9 +1838,8 @@
           // --- Status Indicator Logic ---
           function getPreviousSundays(dateStr, count) {
             const sundays = []
-            const currentDate = new Date(dateStr + 'T12:00:00') // Use noon to avoid timezone issues
+            const currentDate = new Date(dateStr + 'T12:00:00')
 
-            // Encontra o último domingo antes ou na data atual
             while (currentDate.getUTCDay() !== 0) {
               currentDate.setUTCDate(currentDate.getUTCDate() - 1)
             }
@@ -1880,11 +1863,11 @@
                 newRecentAttendance[date] =
                   docSnap.data().presentMemberIds || []
               } else {
-                newRecentAttendance[date] = null // Marca como sem dados disponíveis
+                newRecentAttendance[date] = null
               }
             }
             recentAttendance.value = newRecentAttendance
-            memberStatusCache.value = {} // Limpa o cache ao carregar novos dados
+            memberStatusCache.value = {}
           }
 
           function getMemberStatus(memberId) {
@@ -1907,27 +1890,22 @@
             })
 
             if (attendanceHistory.includes('no-data')) {
-              memberStatusCache.value[memberId] = 'blue'
-              return 'blue'
+              return (memberStatusCache.value[memberId] = 'blue')
             }
 
             const [last, secondLast, thirdLast] = attendanceHistory
 
             if (last && secondLast && thirdLast) {
-              memberStatusCache.value[memberId] = 'green'
-              return 'green'
+              return (memberStatusCache.value[memberId] = 'green')
             }
             if (!last && !secondLast && !thirdLast) {
-              memberStatusCache.value[memberId] = 'red'
-              return 'red'
+              return (memberStatusCache.value[memberId] = 'red')
             }
             if (!last && !secondLast) {
-              memberStatusCache.value[memberId] = 'yellow'
-              return 'yellow'
+              return (memberStatusCache.value[memberId] = 'yellow')
             }
 
-            memberStatusCache.value[memberId] = 'blue'
-            return 'blue'
+            return (memberStatusCache.value[memberId] = 'blue')
           }
 
           function getMemberStatusClass(memberId) {
@@ -2291,7 +2269,6 @@
                   throw new Error('Formato do arquivo de backup inválido.')
                 }
 
-                // Apagar dados antigos
                 const oldMembers = await getDocs(membersCollectionRef)
                 const oldAttendance = await getDocs(attendanceCollectionRef)
                 const deleteBatch = writeBatch(db.value)
@@ -2299,10 +2276,8 @@
                 oldAttendance.forEach(doc => deleteBatch.delete(doc.ref))
                 await deleteBatch.commit()
 
-                // Adicionar novos dados
                 const addBatch = writeBatch(db.value)
                 backupData.members.forEach(member => {
-                  // Se os membros no JSON não tiverem ID, criamos um novo
                   const memberRef = member.id
                     ? doc(membersCollectionRef, member.id)
                     : doc(membersCollectionRef)
@@ -2392,3 +2367,5 @@
     </script>
   </body>
 </html>
+
+
